@@ -3,7 +3,8 @@ import json
 import os
 import dataclasses
 import entities
-from typing import Dict as _Dict
+from entities import *
+from typing import Dict as _Dict, Optional
 
 class PersistentWorld(esper.World):
 
@@ -39,7 +40,7 @@ class PersistentWorld(esper.World):
             }
 
             export['entities'].append(entity_export)
-        
+
         with open(filepath, 'w') as f:
             print(export)
             f.write(json.dumps(export, indent=2))
@@ -106,3 +107,13 @@ class PersistentWorld(esper.World):
                 self._components[cls].add(id)
                 self._entities[id][cls] = inst
         return True
+
+    def get_players(self) -> [str]:
+        players = self.get_component(Owner)
+        return [ p.name for (e,p) in players ]
+
+    def create_player(self, name) -> Optional[str]:
+        players = self.get_players()
+        if name in players:
+            return "Player already exists"
+        self.create_entity(Owner(name=name), Egg())
