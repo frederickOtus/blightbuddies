@@ -79,9 +79,6 @@ if __name__ == "__main__":
 
     world = PersistentWorld()
 
-    world.interval = 3
-    world.path = "/home/envtest/coding/blightbuddies/instance"
-
     listen_thread = threading.Thread(target=command_server, args=[world])
     listen_thread.start()
 

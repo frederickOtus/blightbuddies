@@ -5,14 +5,29 @@ import dataclasses
 import entities
 from entities import *
 from typing import Dict as _Dict, Optional
+from pathlib import Path
 
 class PersistentWorld(esper.World):
 
     interval : int = 100
-    path : str = ""
+    path :  Path
     save_name : str = "persistent"
     number_of_backups : int = 5
     tick : int = 0
+
+    def __init__(self, tick_rate: int = 3600, save_path = None):
+
+        self.interval = tick_rate
+
+        # Ensure path exists.
+        if save_path is None:
+            save_path = Path(__file__).parent.joinpath('instance')
+        else:
+            save_path = Path(save_path)
+        save_path.mkdir(parents=True, exist_ok=True)
+        self.path = save_path
+
+        super().__init__()
     
     def write_save(self, filepath):
         """
@@ -42,7 +57,6 @@ class PersistentWorld(esper.World):
             export['entities'].append(entity_export)
 
         with open(filepath, 'w') as f:
-            print(export)
             f.write(json.dumps(export, indent=2))
 
     def save(self):
@@ -51,18 +65,20 @@ class PersistentWorld(esper.World):
         """
 
         # Cycle old backups:
-        base_path = f"{self.path}/{self.save_name}.json"
+        base_name = f"{self.save_name}.json"
         for i in range(self.number_of_backups - 1, 0, -1):
-            old_name = base_path + ".bak" + str(i)
-            new_name = base_path + ".bak" + str(i+1)
-            if os.path.isfile(old_name):
-                os.replace(old_name, new_name)
+            old_name = self.path.joinpath(base_name + ".bak" + str(i))
+            new_name = self.path.joinpath(base_name + ".bak" + str(i+1))
+            if old_name.is_file():
+                os.replace(str(old_name), str(new_name))
 
         # Handle current save.
-        if os.path.isfile(base_path):
-            os.replace(base_path, base_path + ".bak1")
+        current_save = self.path.joinpath(base_name)
+        target_save = self.path.joinpath(base_name + '.bak1')
+        if current_save.is_file():
+            os.replace(str(current_save), str(target_save))
 
-        self.write_save(base_path)
+        self.write_save(current_save)
 
     def process(self, *args, **kwargs):
         res = super().process(*args, **kwargs)
@@ -85,12 +101,12 @@ class PersistentWorld(esper.World):
             or len(self._entities) != 0):
             raise Exception("World has already changed state")
 
-        base_path = f"{self.path}/{self.save_name}.json"
-        if not os.path.isfile(base_path):
+        current_save = self.path.joinpath(f"{self.save_name}.json")
+        if not current_save.is_file():
             return False
 
         data = {}
-        with open(base_path) as f:
+        with current_save.open() as f:
             data = json.loads(f.read())
 
         self.tick = data['tick']
